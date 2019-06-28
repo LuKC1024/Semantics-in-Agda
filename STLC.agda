@@ -1,6 +1,5 @@
 module STLC where
 open import Relation.Binary.PropositionalEquality as Eq using (_≡_; refl)
-open import Data.Maybe
 open import Data.Sum
   
 data Env (A : Set) : Set where
