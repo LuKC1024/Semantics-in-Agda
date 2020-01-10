@@ -1,0 +1,8 @@
+module Types where
+
+data Type : Set where
+  Unit : Type
+  Either : Type -> Type -> Type
+  Pair : Type → Type → Type
+  _⇒_ : Type → Type → Type
+

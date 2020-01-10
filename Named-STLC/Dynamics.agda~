@@ -1,0 +1,103 @@
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Nullary using (¬_; Dec; yes; no)
+open import Data.Empty using (⊥-elim)
+
+module Named-STLC.Dynamics
+  (Id : Set)
+  (Id=? : (x y : Id) → Dec (x ≡ y))
+  where
+
+open import Types
+open import Named-STLC.Statics Id Id=?
+
+data Value : ∀ {A} → ∙ ⊢ A → Set where
+
+  sole : Value sole
+
+  cons : ∀ {A1 A2}
+    → {M1 : ∙ ⊢ A1}
+    → (V1 : Value M1)
+    → {M2 : ∙ ⊢ A2}
+    → (V2 : Value M2)
+    -----
+    → Value (cons M1 M2)
+
+  left : ∀ {A1 A2}
+    → {M : ∙ ⊢ A1}
+    → (V : Value M)
+    ----
+    → Value (left {A2 = A2} M)
+
+  right : ∀ {A1 A2}
+    → {M : ∙ ⊢ A2}
+    → (V : Value M)
+    ----
+    → Value (right {A1 = A1} M)
+
+  lambda : ∀ {A2}
+    → ∀ x A1
+    → (M : (∙ , x ⦂ A1) ⊢ A2)
+    ---
+    → Value (lambda x A1 M)
+
+unvalue : ∀ {A} → {M : ∙ ⊢ A} → Value M → ∙ ⊢ A
+unvalue {M = M} V = M
+
+data ⊢_↣_ : Type → Type → Set where
+
+  cons-□ : ∀ {A1 A2}
+    → (M2 : ∙ ⊢ A2)
+    -----
+    → ⊢ A1 ↣ Pair A1 A2
+
+  cons_□ : ∀ {A1 A2}
+    → {M1 : ∙ ⊢ A1}
+    → (V1 : Value M1)
+    -----
+    → ⊢ A2 ↣ Pair A1 A2
+
+  car : ∀ {A1 A2}
+    ----
+    → ⊢ Pair A1 A2 ↣ A1
+
+  cdr : ∀ {A1 A2}
+    ----
+    → ⊢ Pair A1 A2 ↣ A2
+
+  left : ∀ {A1 A2}
+    ----
+    → ⊢ A1 ↣ Either A1 A2
+
+  right : ∀ {A1 A2}
+    ----
+    → ⊢ A2 ↣ Either A1 A2
+
+  match-□-[_⇒_][_⇒_] : ∀ {A1 A2 A3}
+    → (x1 : Id)
+    → (M1 : (∙ , x1 ⦂ A1) ⊢ A3)
+    → (x2 : Id)
+    → (M2 : (∙ , x2 ⦂ A2) ⊢ A3)
+    → ⊢ Either A1 A2 ↣ A3
+
+  app-□ : ∀ {A1 A2}
+    → (M2 : ∙ ⊢ A1)
+    ----
+    → ⊢ (A1 ⇒ A2) ↣ A2
+
+  app_□ : ∀ {A1 A2}
+    → {M1 : ∙ ⊢ (A1 ⇒ A2)}
+    → (V1 : Value M1)
+    ----
+    → ⊢ A1 ↣ A2
+
+[_]_ : ∀ {A1 A2} → ∙ ⊢ A1 → ⊢ A1 ↣ A2 → ∙ ⊢ A2
+[ M ] cons-□ M2 = cons M M2
+[ M ] cons V1 □ = cons (unvalue V1) M
+[ M ] car = car M
+[ M ] cdr = cdr M
+[ M ] left = left M
+[ M ] right = right M
+[ M ] match-□-[ x1 ⇒ M1 ][ x2 ⇒ M2 ] = match M [ x1 ⇒ M1 ][ x2 ⇒ M2 ]
+[ M ] app-□ M2 = app M M2
+[ M ] app V1 □ = app (unvalue V1) M
+

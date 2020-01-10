@@ -1,0 +1,208 @@
+module Named-STLC.Terms
+  (Id : Set)
+  (Id=? : (x y : Id) → Dec (x ≡ y))
+  where
+
+open import Types
+
+data Type : Set where
+  Unit : Type
+  Bool : Type
+  Pair : Type → Type → Type
+  _⇒_ : Type → Type → Type
+
+data Context : Set where
+  ∙ : Context
+  _,_⦂_ : (Γ : Context) → (x : Id) → (A : Type) → Context
+
+data [_⦂_]∈_ (x : Id) (A : Type) : Context → Set where
+  zero : ∀ {Γ}
+    -----
+    → [ x ⦂ A ]∈ (Γ , x ⦂ A)
+  suc : ∀ {Γ y B}
+    → [ x ⦂ A ]∈ Γ
+    → ¬ x ≡ y
+    → [ x ⦂ A ]∈ (Γ , y ⦂ B)
+
+lem-unique-lookup : ∀ {Γ x A B}
+  → [ x ⦂ A ]∈ Γ
+  → [ x ⦂ B ]∈ Γ
+  -----
+  → A ≡ B
+lem-unique-lookup zero zero = refl
+lem-unique-lookup zero (suc j ¬x≡y) = ⊥-elim (¬x≡y refl)
+lem-unique-lookup (suc i ¬x≡y) zero = ⊥-elim (¬x≡y refl)
+lem-unique-lookup (suc i ¬x≡y) (suc j _) = lem-unique-lookup i j
+
+_-_ : Context → Id → Context
+∙ - x = ∙
+(Γ , y ⦂ B) - x with Id=? x y
+(Γ , y ⦂ B) - x | yes p = Γ
+(Γ , y ⦂ B) - x | no ¬p = (Γ - x) , y ⦂ B
+
+lem-remove-irrelevant : ∀ {x y A Γ}
+  → [ y ⦂ A ]∈ Γ
+  → ¬ x ≡ y
+  → [ y ⦂ A ]∈ (Γ - x)
+lem-remove-irrelevant {x} {y} zero neq with Id=? x y
+lem-remove-irrelevant {x} {y} zero neq | yes refl = ⊥-elim (neq refl)
+lem-remove-irrelevant {x} {y} zero neq | no ¬p = zero
+lem-remove-irrelevant {x} {y} (suc {y = z} i neq') neq with Id=? x z
+lem-remove-irrelevant {x} {y} (suc {y = z} i neq') neq | yes refl = i
+lem-remove-irrelevant {x} {y} (suc {y = z} i neq') neq | no ¬p
+  = suc (lem-remove-irrelevant i neq) neq'
+
+data Term : Set where
+  var : Id → Term
+  Y : Term
+  N : Term
+  ⋆ : Term
+  cons : Term → Term → Term
+  _∙l : Term → Term
+  _∙r : Term → Term
+  lam_⦂_∙_ : Id → Type → Term → Term
+  app : Term → Term → Term
+
+data _⊢_⦂_ : Context → Term → Type → Set where
+  var : ∀ {Γ x A}
+    → [ x ⦂ A ]∈ Γ
+    -----
+    → Γ ⊢ var x ⦂ A
+
+  Y : ∀ {Γ}
+    -----
+    → Γ ⊢ Y ⦂ Bool
+    
+  N : ∀ {Γ}
+    -----
+    → Γ ⊢ N ⦂ Bool
+
+  ⋆ : ∀ {Γ}
+    -----
+    → Γ ⊢ ⋆ ⦂ Unit
+
+  cons : ∀ {Γ M1 M2 A1 A2}
+    → Γ ⊢ M1 ⦂ A1
+    → Γ ⊢ M2 ⦂ A2
+    -----
+    → Γ ⊢ cons M1 M2 ⦂ Pair A1 A2
+
+  _∙l : ∀ {Γ M A1 A2}
+    → Γ ⊢ M ⦂ Pair A1 A2
+    ----
+    → Γ ⊢ M ∙l ⦂ A1
+
+  _∙r : ∀ {Γ M A1 A2}
+    → Γ ⊢ M ⦂ Pair A1 A2
+    ----
+    → Γ ⊢ M ∙r ⦂ A2
+
+  lam_ : ∀ {Γ x M A1 A2}
+    → (Γ , x ⦂ A1) ⊢ M ⦂ A2
+    ---
+    → Γ ⊢ lam x ⦂ A1 ∙ M ⦂ A2
+
+  app : ∀ {Γ M1 M2 A1 A2}
+    → Γ ⊢ M1 ⦂ (A1 ⇒ A2)
+    → Γ ⊢ M2 ⦂ A1
+    ----
+    → Γ ⊢ app M1 M2 ⦂ A2
+
+
+embed-removed : ∀ {Γ x A M B}
+  → ((Γ - x) , x ⦂ A) ⊢ M ⦂ B
+  → (Γ , x ⦂ A) ⊢ M ⦂ B
+embed-removed (var y) = var {!!}
+embed-removed Y = Y
+embed-removed N = N
+embed-removed ⋆ = ⋆
+embed-removed (cons M1 M2) = cons (embed-removed M1) (embed-removed M2)
+embed-removed (M ∙l) = embed-removed M ∙l
+embed-removed (M ∙r) = embed-removed M ∙r
+embed-removed (lam M) = lam {!!}
+embed-removed (app M1 M2) = app (embed-removed M1) (embed-removed M2)
+
+_⦂_ : Term → Type → Set
+M ⦂ A = ∙ ⊢ M ⦂ A
+
+data Final : Term → Set where
+  Y : Final Y
+  N : Final N
+  ⋆ : Final ⋆
+  cons : ∀ M1 M2 → Final (cons M1 M2)
+  lam_⦂_∙_ : ∀ x A M → Final (lam x ⦂ A ∙ M)
+
+if : {T T' : Set} → {x y : T} → Dec (x ≡ y) → T' → T' → T'
+if (yes p) a b = a
+if (no ¬p) a b = b
+
+[_/_]_ : Term → Id → Term → Term
+[ M' / x ] var y = if (Id=? x y) M' (var y)
+[ M' / x ] Y = Y
+[ M' / x ] N = N
+[ M' / x ] ⋆ = ⋆
+[ M' / x ] cons M1 M2 = cons ([ M' / x ] M1) ([ M' / x ] M2)
+[ M' / x ] (M ∙l) = ([ M' / x ] M) ∙l
+[ M' / x ] (M ∙r) = ([ M' / x ] M) ∙r
+[ M' / x ] (lam y ⦂ A ∙ M) = lam y ⦂ A ∙ if (Id=? x y) M ([ M' / x ] M)
+[ M' / x ] app M1 M2 = app ([ M' / x ] M1) ([ M' / x ] M2)
+
+data _⟼_ : Term → Term → Set where
+  _∙l : ∀ {M M'}
+    → M ⟼ M'
+    → (M ∙l) ⟼ (M' ∙l)
+
+  _∙r : ∀ {M M'}
+    → M ⟼ M'
+    → (M ∙r) ⟼ (M' ∙r)
+
+  do-lft : ∀ {M1 M2}
+    → ((cons M1 M2) ∙l) ⟼ M1
+
+  do-rht : ∀ {M1 M2}
+    → ((cons M1 M2) ∙r) ⟼ M2
+
+  app : ∀ {M1 M1'}
+    → M1 ⟼ M1'
+    → ∀ M2
+    → (app M1 M2) ⟼ (app M1' M2)
+
+  do-app : ∀ {x A M M2}
+    → (app (lam x ⦂ A ∙ M) M2) ⟼ ([ M2 / x ] M)
+
+lem-subst-preserve : ∀ {Γ x A B M N}
+  → [ x ⦂ A ]∈ Γ
+  → Γ ⊢ N ⦂ B
+  → (Γ - x) ⊢ M ⦂ A
+  ---
+  → (Γ - x) ⊢ [ M / x ] N ⦂ B
+lem-subst-preserve {x = x} i (var {x = y} j) M with Id=? x y
+lem-subst-preserve {x = x} i (var {x = y} j) M | yes refl
+  rewrite lem-unique-lookup i j
+  = M
+lem-subst-preserve {x = x} i (var {x = y} j) M | no ¬p = var (lem-remove-irrelevant j ¬p)
+lem-subst-preserve i Y arg = Y
+lem-subst-preserve i N arg = N
+lem-subst-preserve i ⋆ arg = ⋆
+lem-subst-preserve i (cons M1 M2) arg
+  = cons (lem-subst-preserve i M1 arg)
+         (lem-subst-preserve i M2 arg)
+lem-subst-preserve i (M ∙l) arg = lem-subst-preserve i M arg ∙l
+lem-subst-preserve i (M ∙r) arg = lem-subst-preserve i M arg ∙r
+lem-subst-preserve {x = x} i (lam_ {x = y} M) arg with Id=? x y
+lem-subst-preserve {x = y} i (lam_ {x = y} M) arg | yes refl = lam {!!}
+lem-subst-preserve {x = x} i (lam_ {x = y} M) arg | no ¬p = lam {!!}
+lem-subst-preserve i (app M1 M2) arg
+  = app (lem-subst-preserve i M1 arg) (lem-subst-preserve i M2 arg)
+
+thm-preservation : ∀ {M M' A}
+  → M ⦂ A
+  → M ⟼ M'
+  → M' ⦂ A
+thm-preservation (M⦂A ∙l) (M⟼M' ∙l) = thm-preservation M⦂A M⟼M' ∙l
+thm-preservation (M⦂A ∙r) (M⟼M' ∙r) = thm-preservation M⦂A M⟼M' ∙r
+thm-preservation (cons M1⦂A1 M2⦂A2 ∙l) do-lft = M1⦂A1
+thm-preservation (cons M1⦂A1 M2⦂A2 ∙r) do-rht = M2⦂A2
+thm-preservation (app M1⦂A1⇒A2 M2⦂A1) (app M1⟼M1' M2)
+  = app (thm-preservation M1⦂A1⇒A2 M1⟼M1') M2⦂A1
+thm-preservation (app (lam M⦂A2) M2⦂A1) do-app = {!!}
