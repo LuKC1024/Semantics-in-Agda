@@ -42,7 +42,7 @@ data _⊢_ : Context → Type → Set where
     -----
     → Γ ⊢ Trivial
 
-  cons : ∀ {Γ A1 A2}
+  ⟨_,_⟩ : ∀ {Γ A1 A2}
     → (M1 : Γ ⊢ A1)
     → (M2 : Γ ⊢ A2)
     -----

@@ -2,6 +2,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym)
 open import Relation.Nullary using (¬_; Dec; yes; no)
 open import Data.Empty using (⊥-elim)
 open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Product using (_×_; _,_; ∃-syntax)
 
 module Named-STLC.Dynamics
   (Id : Set)
@@ -15,13 +16,13 @@ data Value : ∀ {A} → ∙ ⊢ A → Set where
 
   sole : Value sole
 
-  cons : ∀ {A1 A2}
+  ⟨_,_⟩ : ∀ {A1 A2}
     → {M1 : ∙ ⊢ A1}
     → (V1 : Value M1)
     → {M2 : ∙ ⊢ A2}
     → (V2 : Value M2)
     -----
-    → Value (cons M1 M2)
+    → Value ⟨ M1 , M2 ⟩
 
   left : ∀ {A1 A2}
     → {M : ∙ ⊢ A1}
@@ -35,41 +36,42 @@ data Value : ∀ {A} → ∙ ⊢ A → Set where
     ----
     → Value (right {A1 = A1} M)
 
-  lambda : ∀ {A2}
+  lambda_⦂_∙_ : ∀ {A2}
     → ∀ x A1
     → (M : (∙ , x ⦂ A1) ⊢ A2)
     ---
     → Value (lambda x ⦂ A1 ∙ M)
 
-unvalue : ∀ {A} → {M : ∙ ⊢ A} → Value M → ∙ ⊢ A
-unvalue {M = M} V = M
+` : ∀ {A} → {M : ∙ ⊢ A} → Value M → ∙ ⊢ A
+` {M = M} V = M
 
+-- Frame of evaluation context
 data ⊢_↣_ : Type → Type → Set where
 
-  cons-□ : ∀ {A1 A2}
+  ⟨-□-,_⟩ : ∀ {A1 A2}
     → (M2 : ∙ ⊢ A2)
     -----
     → ⊢ A1 ↣ Pair A1 A2
 
-  cons_□ : ∀ {A1 A2}
+  ⟨_,-□-⟩ : ∀ {A1 A2}
     → {M1 : ∙ ⊢ A1}
     → (V1 : Value M1)
     -----
     → ⊢ A2 ↣ Pair A1 A2
 
-  car : ∀ {A1 A2}
+  car-□ : ∀ {A1 A2}
     ----
     → ⊢ Pair A1 A2 ↣ A1
 
-  cdr : ∀ {A1 A2}
+  cdr-□ : ∀ {A1 A2}
     ----
     → ⊢ Pair A1 A2 ↣ A2
 
-  left : ∀ {A1 A2}
+  left-□ : ∀ {A1 A2}
     ----
     → ⊢ A1 ↣ Either A1 A2
 
-  right : ∀ {A1 A2}
+  right-□ : ∀ {A1 A2}
     ----
     → ⊢ A2 ↣ Either A1 A2
 
@@ -91,16 +93,17 @@ data ⊢_↣_ : Type → Type → Set where
     ----
     → ⊢ A1 ↣ A2
 
+-- put term into frame
 [_]_ : ∀ {A1 A2} → ∙ ⊢ A1 → ⊢ A1 ↣ A2 → ∙ ⊢ A2
-[ M ] cons-□ M2 = cons M M2
-[ M ] cons V1 □ = cons (unvalue V1) M
-[ M ] car = car M
-[ M ] cdr = cdr M
-[ M ] left = left M
-[ M ] right = right M
+[ M ] ⟨-□-, M2 ⟩ = ⟨ M , M2 ⟩
+[ M ] ⟨ V1 ,-□-⟩ = ⟨ ` V1 , M ⟩
+[ M ] car-□ = car M
+[ M ] cdr-□ = cdr M
+[ M ] left-□ = left M
+[ M ] right-□ = right M
 [ M ] match-□-[ x1 ⇒ M1 ][ x2 ⇒ M2 ] = match M [ x1 ⇒ M1 ][ x2 ⇒ M2 ]
 [ M ] app-□ M2 = app M M2
-[ M ] app V1 □ = app (unvalue V1) M
+[ M ] app V1 □ = app (` V1) M
 
 _⦂_,_ : Id → Type → Context → Context
 x' ⦂ A' , ∙ = ∙ , x' ⦂ A'
@@ -119,7 +122,7 @@ embed : ∀ {Γ A}
   → (x' ⦂ A' , Γ) ⊢ A
 embed (var i) = var (embed-var i)
 embed sole = sole
-embed (cons M1 M2) = cons (embed M1) (embed M2)
+embed ⟨ M1 , M2 ⟩ = ⟨ embed M1 , embed M2 ⟩
 embed (car M) = car (embed M)
 embed (cdr M) = cdr (embed M)
 embed (left M) = left (embed M)
@@ -161,6 +164,7 @@ subst-var {Γ = Γ , x ⦂ A} (¬p ∷ i) with subst-var i
 ... | inj₁ refl = inj₁ refl
 ... | inj₂ j = inj₂ (¬p ∷ j)
 
+-- substitution, close terms only
 [_/_]_ : ∀ {A B}
   → (M' : ∙ ⊢ A)
   → (x : Id)
@@ -171,7 +175,7 @@ subst-var {Γ = Γ , x ⦂ A} (¬p ∷ i) with subst-var i
 ... | inj₁ refl rewrite sym (lem-++-∙ Γ) = embed* M' Γ
 ... | inj₂ j = var j 
 [ M' / x' ] sole = sole
-[ M' / x' ] cons M1 M2 = cons ([ M' / x' ] M1) ([ M' / x' ] M2)
+[ M' / x' ] ⟨ M1 , M2 ⟩ = ⟨ [ M' / x' ] M1 , [ M' / x' ] M2 ⟩
 [ M' / x' ] car M = car ([ M' / x' ] M)
 [ M' / x' ] cdr M = cdr ([ M' / x' ] M)
 [ M' / x' ] left M = left ([ M' / x' ] M)
@@ -181,25 +185,26 @@ subst-var {Γ = Γ , x ⦂ A} (¬p ∷ i) with subst-var i
 [ M' / x' ] lambda x ⦂ A1 ∙  M = lambda x ⦂ A1 ∙ ([ M' / x' ] M)
 [ M' / x' ] app M1 M2 = app ([ M' / x' ] M1) ([ M' / x' ] M2)
 
+-- reduction of redex
 data _⟶_ : ∀ {A} → ∙ ⊢ A → ∙ ⊢ A → Set where
 
-  car-[cons_-_] : ∀ {A1 A2}
+  car⟨_,_⟩ : ∀ {A1 A2}
     → {M1 : ∙ ⊢ A1}
     → (V1 : Value M1)
     → {M2 : ∙ ⊢ A2}
     → (V2 : Value M2)
     ----
-    → (car (cons M1 M2)) ⟶ M1
+    → (car ⟨ M1 , M2 ⟩) ⟶ M1
     
-  cdr-[cons_-_] : ∀ {A1 A2}
+  cdr⟨_,_⟩ : ∀ {A1 A2}
     → {M1 : ∙ ⊢ A1}
     → (V1 : Value M1)
     → {M2 : ∙ ⊢ A2}
     → (V2 : Value M2)
     ----
-    → (cdr (cons M1 M2)) ⟶ M2
+    → (cdr ⟨ M1 , M2 ⟩) ⟶ M2
 
-  match-[left_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
+  match[-left_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
     → {M0 : ∙ ⊢ A1}
     → (V0 : Value M0)
     → (x1 : Id)
@@ -208,7 +213,7 @@ data _⟶_ : ∀ {A} → ∙ ⊢ A → ∙ ⊢ A → Set where
     → (M2 : (∙ , x2 ⦂ A2) ⊢ A3)
     → match (left M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x1 ] M1)
 
-  match-[right_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
+  match[-right_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
     → {M0 : ∙ ⊢ A2}
     → (V0 : Value M0)
     → (x1 : Id)
@@ -217,7 +222,7 @@ data _⟶_ : ∀ {A} → ∙ ⊢ A → ∙ ⊢ A → Set where
     → (M2 : (∙ , x2 ⦂ A2) ⊢ A3)
     → match (right M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x2 ] M2)
 
-  app-[lambda_⦂_∙_]_ : ∀ {A2}
+  app[-lambda_⦂_∙_]_ : ∀ {A2}
     → ∀ x A1
     → (M : (∙ , x ⦂ A1) ⊢ A2)
     → {M2 : ∙ ⊢ A1}
@@ -225,10 +230,11 @@ data _⟶_ : ∀ {A} → ∙ ⊢ A → ∙ ⊢ A → Set where
     ----
     → app (lambda x ⦂ A1 ∙ M) M2 ⟶ ([ M2 / x ] M)
 
+-- reduction of program
 data _⟼_ : {A : Type} → ∙ ⊢ A → ∙ ⊢ A → Set where
   nil : ∀ {A}
     → {M M' : ∙ ⊢ A}
-    → {prf : M ⟶ M'}
+    → (prf : M ⟶ M')
     → M ⟼ M'
 
   _∷_ : ∀ {A B}
@@ -237,3 +243,36 @@ data _⟼_ : {A : Type} → ∙ ⊢ A → ∙ ⊢ A → Set where
     → M ⟼ M'
     → ([ M ] F) ⟼ ([ M' ] F)
 
+thm-type-safety : ∀ {A}
+  → (M : ∙ ⊢ A)
+  → (∃[ M' ] (M ⟼ M')) ⊎ (Value M)
+thm-type-safety (var ()) 
+thm-type-safety sole = inj₂ sole
+thm-type-safety ⟨ M1 , M2 ⟩ with thm-type-safety M1
+... | inj₁ (M1' , M1⟼M1') = inj₁ (_ , (⟨-□-, M2 ⟩ ∷ M1⟼M1'))
+... | inj₂ V1 with thm-type-safety M2
+...   | inj₁ (M2' , M2⟼M2') = inj₁ (_ , (⟨ V1 ,-□-⟩ ∷ M2⟼M2'))
+...   | inj₂ V2 = inj₂ ⟨ V1 , V2 ⟩
+thm-type-safety (car M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (car-□ ∷ M⟼M'))
+... | inj₂ ⟨ V1 , V2 ⟩ = inj₁ (_ , nil car⟨ V1 , V2 ⟩)
+thm-type-safety (cdr M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (cdr-□ ∷ M⟼M'))
+... | inj₂ ⟨ V1 , V2 ⟩ = inj₁ (` V2 , nil cdr⟨ V1 , V2 ⟩)
+thm-type-safety (left M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (left-□ ∷ M⟼M'))
+... | inj₂ V1 = inj₂ (left V1)
+thm-type-safety (right M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (right-□ ∷ M⟼M'))
+... | inj₂ V1 = inj₂ (right V1)
+thm-type-safety (match M [ x1 ⇒ M1 ][ x2 ⇒ M2 ]) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (match-□-[ x1 ⇒ M1 ][ x2 ⇒ M2 ] ∷ M⟼M'))
+... | inj₂ (left V1)  = inj₁ (_ , nil match[-left V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
+... | inj₂ (right V1) = inj₁ (_ , nil match[-right V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
+thm-type-safety (lambda x ⦂ A1 ∙ M) = inj₂ (lambda x ⦂ A1 ∙ M)
+thm-type-safety (app M1 M2) with thm-type-safety M1
+... | inj₁ (M1' , M1⟼M1') = inj₁ (_ , (app-□ M2) ∷ M1⟼M1')
+... | inj₂ V1 with thm-type-safety M2
+...   | inj₁ (M2' , M2⟼M2') = inj₁ (_ , (app V1 □) ∷ M2⟼M2')
+...   | inj₂ V2 with V1
+...     | lambda x ⦂ A ∙ M = inj₁ (_ , nil (app[-lambda x ⦂ A ∙ M ] V2) )
