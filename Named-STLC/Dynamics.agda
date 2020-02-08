@@ -24,17 +24,17 @@ data Value : ∀ {A} → ∙ ⊢ A → Set where
     -----
     → Value ⟨ M1 , M2 ⟩
 
-  left : ∀ {A1 A2}
+  inl : ∀ {A1 A2}
     → {M : ∙ ⊢ A1}
     → (V : Value M)
     ----
-    → Value (left {A2 = A2} M)
+    → Value (inl {A2 = A2} M)
 
-  right : ∀ {A1 A2}
+  inr : ∀ {A1 A2}
     → {M : ∙ ⊢ A2}
     → (V : Value M)
     ----
-    → Value (right {A1 = A1} M)
+    → Value (inr {A1 = A1} M)
 
   lambda_⦂_∙_ : ∀ {A2}
     → ∀ x A1
@@ -67,11 +67,11 @@ data ⊢_↣_ : Type → Type → Set where
     ----
     → ⊢ Pair A1 A2 ↣ A2
 
-  left-□ : ∀ {A1 A2}
+  inl-□ : ∀ {A1 A2}
     ----
     → ⊢ A1 ↣ Either A1 A2
 
-  right-□ : ∀ {A1 A2}
+  inr-□ : ∀ {A1 A2}
     ----
     → ⊢ A2 ↣ Either A1 A2
 
@@ -99,8 +99,8 @@ data ⊢_↣_ : Type → Type → Set where
 [ M ] ⟨ V1 ,-□-⟩ = ⟨ ` V1 , M ⟩
 [ M ] car-□ = car M
 [ M ] cdr-□ = cdr M
-[ M ] left-□ = left M
-[ M ] right-□ = right M
+[ M ] inl-□ = inl M
+[ M ] inr-□ = inr M
 [ M ] match-□-[ x1 ⇒ M1 ][ x2 ⇒ M2 ] = match M [ x1 ⇒ M1 ][ x2 ⇒ M2 ]
 [ M ] app-□ M2 = app M M2
 [ M ] app V1 □ = app (` V1) M
@@ -125,8 +125,8 @@ embed sole = sole
 embed ⟨ M1 , M2 ⟩ = ⟨ embed M1 , embed M2 ⟩
 embed (car M) = car (embed M)
 embed (cdr M) = cdr (embed M)
-embed (left M) = left (embed M)
-embed (right M) = right (embed M)
+embed (inl M) = inl (embed M)
+embed (inr M) = inr (embed M)
 embed (match M0 [ x1 ⇒ M1 ][ x2 ⇒ M2 ]) = match embed M0 [ x1 ⇒ embed M1 ][ x2 ⇒ embed M2 ]
 embed (lambda x ⦂ A1 ∙ M) = lambda x ⦂ A1 ∙ (embed M)
 embed (app M1 M2) = app (embed M1) (embed M2)
@@ -135,16 +135,16 @@ _++_ : Context → Context → Context
 ∙ ++ ys = ys
 (xs , x ⦂ A) ++ ys = xs ++ (x ⦂ A , ys)
 
-lem-++-right-cons : ∀ Γ1 Γ2 x A →
+lem-++-inr-cons : ∀ Γ1 Γ2 x A →
   (Γ1 ++ (Γ2 , x ⦂ A)) ≡ ((Γ1 ++ Γ2) , x ⦂ A)
-lem-++-right-cons ∙ Γ2 x A = refl
-lem-++-right-cons (Γ1 , x₁ ⦂ A₁) Γ2 x A = lem-++-right-cons Γ1 (x₁ ⦂ A₁ , Γ2) x A
+lem-++-inr-cons ∙ Γ2 x A = refl
+lem-++-inr-cons (Γ1 , x₁ ⦂ A₁) Γ2 x A = lem-++-inr-cons Γ1 (x₁ ⦂ A₁ , Γ2) x A
 
 lem-++-∙ : ∀ Γ → (Γ ++ ∙) ≡ Γ
 lem-++-∙ ∙ = refl
 lem-++-∙ (Γ , x ⦂ A) with lem-++-∙ Γ
 ... | rr
-  rewrite lem-++-right-cons Γ ∙ x A | lem-++-∙ Γ
+  rewrite lem-++-inr-cons Γ ∙ x A | lem-++-∙ Γ
   = refl
 
 embed* : ∀ {Γ1 A}
@@ -173,16 +173,16 @@ subst-var {Γ = Γ , x ⦂ A} (¬p ∷ i) with subst-var i
   → Γ ⊢ B
 [_/_]_ M' x' {Γ} (var i) with subst-var i
 ... | inj₁ refl rewrite sym (lem-++-∙ Γ) = embed* M' Γ
-... | inj₂ j = var j 
+... | inj₂ j = var j
 [ M' / x' ] sole = sole
 [ M' / x' ] ⟨ M1 , M2 ⟩ = ⟨ [ M' / x' ] M1 , [ M' / x' ] M2 ⟩
 [ M' / x' ] car M = car ([ M' / x' ] M)
 [ M' / x' ] cdr M = cdr ([ M' / x' ] M)
-[ M' / x' ] left M = left ([ M' / x' ] M)
-[ M' / x' ] right M = right ([ M' / x' ] M)
+[ M' / x' ] inl M = inl ([ M' / x' ] M)
+[ M' / x' ] inr M = inr ([ M' / x' ] M)
 [ M' / x' ] match M [ x1 ⇒ M₁ ][ x2 ⇒ M₂ ]
   = match [ M' / x' ] M [ x1 ⇒ [ M' / x' ] M₁ ][ x2 ⇒ [ M' / x' ] M₂ ]
-[ M' / x' ] lambda x ⦂ A1 ∙  M = lambda x ⦂ A1 ∙ ([ M' / x' ] M)
+[ M' / x' ] lambda x ⦂ A1 ∙ M = lambda x ⦂ A1 ∙ ([ M' / x' ] M)
 [ M' / x' ] app M1 M2 = app ([ M' / x' ] M1) ([ M' / x' ] M2)
 
 -- reduction of redex
@@ -204,23 +204,23 @@ data _⟶_ : ∀ {A} → ∙ ⊢ A → ∙ ⊢ A → Set where
     ----
     → (cdr ⟨ M1 , M2 ⟩) ⟶ M2
 
-  match[-left_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
+  match[-inl_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
     → {M0 : ∙ ⊢ A1}
     → (V0 : Value M0)
     → (x1 : Id)
     → (M1 : (∙ , x1 ⦂ A1) ⊢ A3)
     → (x2 : Id)
     → (M2 : (∙ , x2 ⦂ A2) ⊢ A3)
-    → match (left M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x1 ] M1)
+    → match (inl M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x1 ] M1)
 
-  match[-right_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
+  match[-inr_][_⇒_][_⇒_] : ∀ {A1 A2 A3}
     → {M0 : ∙ ⊢ A2}
     → (V0 : Value M0)
     → (x1 : Id)
     → (M1 : (∙ , x1 ⦂ A1) ⊢ A3)
     → (x2 : Id)
     → (M2 : (∙ , x2 ⦂ A2) ⊢ A3)
-    → match (right M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x2 ] M2)
+    → match (inr M0) [ x1 ⇒ M1 ][ x2 ⇒ M2 ] ⟶ ([ M0 / x2 ] M2)
 
   app[-lambda_⦂_∙_]_ : ∀ {A2}
     → ∀ x A1
@@ -259,16 +259,16 @@ thm-type-safety (car M) with thm-type-safety M
 thm-type-safety (cdr M) with thm-type-safety M
 ... | inj₁ (M' , M⟼M') = inj₁ (_ , (cdr-□ ∷ M⟼M'))
 ... | inj₂ ⟨ V1 , V2 ⟩ = inj₁ (` V2 , nil cdr⟨ V1 , V2 ⟩)
-thm-type-safety (left M) with thm-type-safety M
-... | inj₁ (M' , M⟼M') = inj₁ (_ , (left-□ ∷ M⟼M'))
-... | inj₂ V1 = inj₂ (left V1)
-thm-type-safety (right M) with thm-type-safety M
-... | inj₁ (M' , M⟼M') = inj₁ (_ , (right-□ ∷ M⟼M'))
-... | inj₂ V1 = inj₂ (right V1)
+thm-type-safety (inl M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (inl-□ ∷ M⟼M'))
+... | inj₂ V1 = inj₂ (inl V1)
+thm-type-safety (inr M) with thm-type-safety M
+... | inj₁ (M' , M⟼M') = inj₁ (_ , (inr-□ ∷ M⟼M'))
+... | inj₂ V1 = inj₂ (inr V1)
 thm-type-safety (match M [ x1 ⇒ M1 ][ x2 ⇒ M2 ]) with thm-type-safety M
 ... | inj₁ (M' , M⟼M') = inj₁ (_ , (match-□-[ x1 ⇒ M1 ][ x2 ⇒ M2 ] ∷ M⟼M'))
-... | inj₂ (left V1)  = inj₁ (_ , nil match[-left V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
-... | inj₂ (right V1) = inj₁ (_ , nil match[-right V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
+... | inj₂ (inl V1)  = inj₁ (_ , nil match[-inl V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
+... | inj₂ (inr V1) = inj₁ (_ , nil match[-inr V1 ][ x1 ⇒ M1 ][ x2 ⇒ M2 ])
 thm-type-safety (lambda x ⦂ A1 ∙ M) = inj₂ (lambda x ⦂ A1 ∙ M)
 thm-type-safety (app M1 M2) with thm-type-safety M1
 ... | inj₁ (M1' , M1⟼M1') = inj₁ (_ , (app-□ M2) ∷ M1⟼M1')

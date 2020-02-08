@@ -40,36 +40,36 @@ data _⊢_ : Context → Type → Set where
 
   sole : ∀ {Γ}
     -----
-    → Γ ⊢ Trivial
+    → Γ ⊢ `U
 
   ⟨_,_⟩ : ∀ {Γ A1 A2}
     → (M1 : Γ ⊢ A1)
     → (M2 : Γ ⊢ A2)
     -----
-    → Γ ⊢ Pair A1 A2
+    → Γ ⊢ A1 `× A2
 
   car : ∀ {Γ A1 A2}
-    → (M : Γ ⊢ Pair A1 A2)
+    → (M : Γ ⊢ A1 `× A2)
     ----
     → Γ ⊢ A1
 
   cdr : ∀ {Γ A1 A2}
-    → (M : Γ ⊢ Pair A1 A2)
+    → (M : Γ ⊢ A1 `× A2)
     ----
     → Γ ⊢ A2
 
-  left : ∀ {Γ A1 A2}
+  inl : ∀ {Γ A1 A2}
     → (M : Γ ⊢ A1)
     ----
-    → Γ ⊢ Either A1 A2
+    → Γ ⊢ A1 `+ A2
 
-  right : ∀ {Γ A1 A2}
+  inr : ∀ {Γ A1 A2}
     → (M : Γ ⊢ A2)
     ----
-    → Γ ⊢ Either A1 A2
+    → Γ ⊢ A1 `+ A2
 
   match_[_⇒_][_⇒_] : ∀ {Γ A1 A2 A3}
-    → (M0 : Γ ⊢ Either A1 A2)
+    → (M0 : Γ ⊢ A1 `+ A2)
     → (x1 : Id)
     → (M1 : (Γ , x1 ⦂ A1) ⊢ A3)
     → (x2 : Id)
@@ -80,10 +80,10 @@ data _⊢_ : Context → Type → Set where
     → ∀ x A1
     → (Γ , x ⦂ A1) ⊢ A2
     ---
-    → Γ ⊢ (A1 ⇒ A2)
+    → Γ ⊢ (A1 `→ A2)
 
   app : ∀ {Γ A1 A2}
-    → (M1 : Γ ⊢ (A1 ⇒ A2))
+    → (M1 : Γ ⊢ (A1 `→ A2))
     → (M2 : Γ ⊢ A1)
     ----
     → Γ ⊢ A2
