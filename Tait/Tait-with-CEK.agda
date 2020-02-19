@@ -169,19 +169,19 @@ progress (expr (L · N , ρ) κ) P-expr = (expr (L , ρ) (□-· (N , ρ) ∷ κ
 progress (cont v (□-· c ∷ k)) P-cont = (expr c (v ·-□ ∷ k))
 progress (cont u (v ·-□ ∷ k)) P-cont = do-app v u k
 
-data _⟶_ {T : Type} : State T → State T → Set where
+data _—→_ {T : Type} : State T → State T → Set where
   it : ∀ {s}
     → (sp : Progressing s)
-    → s ⟶ progress s sp
+    → s —→ progress s sp
 
-_⟶*_ : {T : Type} → State T → State T → Set
-_⟶*_ {T} = Chain (_⟶_ {T})
+_—→*_ : {T : Type} → State T → State T → Set
+_—→*_ {T} = Chain (_—→_ {T})
 
 mutual
   -- a closure is good if it reduces to the same good value under any continuation.
   𝒞 : ∀ A → Closure A → Set
   𝒞 A (M , ρ)
-    = ∃[ v ](𝒱 A v × ({B : Type}(k : Cont A B) → ((expr (M , ρ) k ⟶* cont v k))))
+    = ∃[ v ](𝒱 A v × ({B : Type}(k : Cont A B) → ((expr (M , ρ) k —→* cont v k))))
 
   -- a value is good if
   --   * it is the tt, or
@@ -224,23 +224,23 @@ app-good M M-good N N-good ρ ρ-good
   with M-good ρ ρ-good
 ... | 𝒞-M
   with 𝒞-M
-... | ƛ A L E' , 𝒱-ƛBLE' , M⟶*vM
+... | ƛ A L E' , 𝒱-ƛBLE' , M—→*vM
   with N-good ρ ρ-good
 ... | 𝒞-N
   with 𝒞-N
-... | vN , 𝒱-vN , N⟶*vN
+... | vN , 𝒱-vN , N—→*vN
   with 𝒱-ƛBLE' vN 𝒱-vN
 ... | 𝒞-L-vN∷E'
   with 𝒞-L-vN∷E'
-... | vL , 𝒱-vL , L⟶*vL
+... | vL , 𝒱-vL , L—→*vL
   = vL
   , 𝒱-vL
   , λ k → it P-expr
-        ∷ M⟶*vM (□-· (N , ρ) ∷ k)
+        ∷ M—→*vM (□-· (N , ρ) ∷ k)
        ++ it P-cont
-        ∷ N⟶*vN (ƛ A L E' ·-□ ∷ k)
+        ∷ N—→*vN (ƛ A L E' ·-□ ∷ k)
        ++ it P-cont
-        ∷ L⟶*vL k
+        ∷ L—→*vL k
 
 fundamental-property : ∀ {Γ A}
   → (M : Γ ⊢ A)
@@ -257,10 +257,10 @@ fundamental-property (L · N)
 
 terminate : ∀ {A}
   → (M : [] ⊢ A)
-  → ∃[ v ](load M ⟶* cont v [])
+  → ∃[ v ](load M —→* cont v [])
 terminate M
   with fundamental-property M
 ... | M-good
   with M-good [] (λ ())
-... | vM , 𝒱-Mv , M⟶*vM
-  = vM , (M⟶*vM [])
+... | vM , 𝒱-Mv , M—→*vM
+  = vM , (M—→*vM [])
