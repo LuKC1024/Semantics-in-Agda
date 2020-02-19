@@ -178,15 +178,15 @@ _—→*_ : {T : Type} → State T → State T → Set
 _—→*_ {T} = Chain (_—→_ {T})
 
 mutual
-  -- a closure is good if it reduces to the same good value under any continuation.
+  -- a closure is good if it always reduce to a value and the value is good
+  -- and this reduction happens under any continuation.
   𝒞 : ∀ A → Closure A → Set
   𝒞 A (M , ρ)
     = ∃[ v ](𝒱 A v × ({B : Type}(k : Cont A B) → ((expr (M , ρ) k —→* cont v k))))
 
   -- a value is good if
   --   * it is the tt, or
-  --   * it is a function and the body and a well-extended closure constitute a
-  --     good closure
+  --   * it is a function and returns a good closure when applied to a good value
   𝒱 : ∀ A → Value A → Set
   𝒱 (A ⇒ B) (ƛ A M ρ) = ∀ v → 𝒱 A v → 𝒞 B (M , (v ∷ ρ))
   𝒱 `⊤      `tt       = ⊤
@@ -195,23 +195,23 @@ mutual
 ℛ : ∀ {Γ} → Env Γ → Set
 ℛ {Γ} ρ = ∀ {A} → (x : Γ ∋ A) → 𝒱 A (lookup ρ x)
 
--- a term is good if when combining with any good environment the resulting
+-- a term is good if when combined with any good environment the resulting
 -- closure is good
 𝒯 : ∀ {Γ} A → (M : Γ ⊢ A) → Set
 𝒯 A M = ∀ ρ → ℛ ρ → 𝒞 A (M , ρ)
 
-abs-good : ∀ {Γ B} A
+abs-good : ∀ {Γ} A {B}
   → (M : A ∷ Γ ⊢ B)
   → 𝒯 B M
     ----------
   → 𝒯 (A ⇒ B) (ƛ A M)
-abs-good B M M-good ρ ρ-good
-  = ƛ B M ρ
-  , G
+abs-good A {B} M 𝒯-M ρ ℛ-ρ
+  = ƛ A M ρ
+  , 𝒱-ƛAMρ
   , λ k → it P-expr ∷ []
   where
-  G : 𝒱 (B ⇒ _) (ƛ B M ρ)
-  G v 𝒱-v = M-good (v ∷ ρ) λ { zero → 𝒱-v ; (suc x) → ρ-good x }
+  𝒱-ƛAMρ : 𝒱 (A ⇒ B) (ƛ A M ρ)
+  𝒱-ƛAMρ v 𝒱-v = 𝒯-M (v ∷ ρ) λ { zero → 𝒱-v ; (suc x) → ℛ-ρ x }
 
 app-good : ∀ {Γ B A}
   → (M : Γ ⊢ A ⇒ B)
@@ -220,25 +220,25 @@ app-good : ∀ {Γ B A}
   → 𝒯 A N
     ------------
   → 𝒯 B (M · N)
-app-good M M-good N N-good ρ ρ-good
-  with M-good ρ ρ-good
+app-good M 𝒯-M N 𝒯-N ρ ℛ-ρ
+  with 𝒯-M ρ ℛ-ρ
 ... | 𝒞-M
   with 𝒞-M
-... | ƛ A L E' , 𝒱-ƛBLE' , M—→*vM
-  with N-good ρ ρ-good
+... | ƛ A L ρ̂ , 𝒱-ƛBLρ̂ , M—→*vM
+  with 𝒯-N ρ ℛ-ρ
 ... | 𝒞-N
   with 𝒞-N
 ... | vN , 𝒱-vN , N—→*vN
-  with 𝒱-ƛBLE' vN 𝒱-vN
-... | 𝒞-L-vN∷E'
-  with 𝒞-L-vN∷E'
+  with 𝒱-ƛBLρ̂ vN 𝒱-vN
+... | 𝒞-L-vN∷ρ̂
+  with 𝒞-L-vN∷ρ̂
 ... | vL , 𝒱-vL , L—→*vL
   = vL
   , 𝒱-vL
   , λ k → it P-expr
         ∷ M—→*vM (□-· (N , ρ) ∷ k)
        ++ it P-cont
-        ∷ N—→*vN (ƛ A L E' ·-□ ∷ k)
+        ∷ N—→*vN (ƛ A L ρ̂ ·-□ ∷ k)
        ++ it P-cont
         ∷ L—→*vL k
 
@@ -246,21 +246,18 @@ fundamental-property : ∀ {Γ A}
   → (M : Γ ⊢ A)
     -----------
   → 𝒯 A M
-fundamental-property `tt
-  = λ ρ ρ-good → `tt ,        tt       , λ k → it P-expr ∷ []
-fundamental-property (` x)
-  = λ ρ ρ-good → lookup ρ x , ρ-good x , λ k → it P-expr ∷ []
-fundamental-property (ƛ A M)
-  = abs-good A M (fundamental-property M)
-fundamental-property (L · N)
-  = app-good L (fundamental-property L) N (fundamental-property N) 
+fundamental-property `tt   = λ ρ ℛ-ρ → `tt        , tt    , λ k → it P-expr ∷ []
+fundamental-property (` x) = λ ρ ℛ-ρ → lookup ρ x , ℛ-ρ x , λ k → it P-expr ∷ []
+fundamental-property (ƛ A M) = abs-good A M (fundamental-property M)
+fundamental-property (L · N) = app-good L (fundamental-property L)
+                                        N (fundamental-property N) 
 
 terminate : ∀ {A}
   → (M : [] ⊢ A)
   → ∃[ v ](load M —→* cont v [])
 terminate M
   with fundamental-property M
-... | M-good
-  with M-good [] (λ ())
+... | 𝒯-M
+  with 𝒯-M [] (λ ())
 ... | vM , 𝒱-Mv , M—→*vM
   = vM , (M—→*vM [])
