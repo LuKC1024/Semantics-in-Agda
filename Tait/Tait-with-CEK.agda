@@ -1,15 +1,13 @@
 module Tait-with-CEK where
 
-open import Relation.Binary.PropositionalEquality
-  using (_≡_; refl; cong; cong₂; trans; sym; subst; module ≡-Reasoning)
-open ≡-Reasoning
-
-open import Data.Product using (∃-syntax; Σ-syntax; _×_; _,_; proj₁; proj₂)
+open import Data.Product using (∃-syntax; _×_; _,_)
 open import Data.Unit  using (⊤; tt)
-open import Data.Empty using (⊥)
 
 infixr 5 _∷_
 infixr 5 _++_
+
+-- A chain is like a list with extra checks.
+-- I define list on top of chain later
 
 data Chain {Index : Set} (Link : Index → Index → Set) : Index → Index → Set where
   []  : ∀ {I} → Chain Link I I
@@ -18,15 +16,15 @@ data Chain {Index : Set} (Link : Index → Index → Set) : Index → Index → 
     → Chain Link J K
     → Chain Link I K
 
-List : Set → Set
-List A = Chain (λ _ _ → A) tt tt
-
 _++_ : ∀ {Index} {Link : Index → Index → Set} {I J K : Index}
   → Chain Link I J
   → Chain Link J K
   → Chain Link I K
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+List : Set → Set
+List A = Chain (λ _ _ → A) tt tt
 
 infix  3 _∋_
 infix  3 _⊢_
@@ -64,7 +62,7 @@ data _⊢_ : Context → Type → Set where
       -----
     → Γ ⊢ A
 
-  ƛ  : ∀ {Γ} A {B}
+  ƛ  : ∀ {Γ B} A
     → A ∷ Γ ⊢ B
       ---------
     → Γ ⊢ A ⇒ B
