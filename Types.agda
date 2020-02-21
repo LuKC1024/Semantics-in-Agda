@@ -1,7 +1,7 @@
 module Types where
 
 data Type : Set where
-  `U : Type
+  `⊤ : Type
   _`+_ : Type -> Type -> Type
   _`×_ : Type → Type → Type
   _`→_ : Type → Type → Type
