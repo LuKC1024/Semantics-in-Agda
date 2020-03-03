@@ -198,7 +198,10 @@ mutual
 -- a term is good if when combined with any good environment the resulting
 -- closure is good
 𝒯 : ∀ {Γ} A → (M : Γ ⊢ A) → Set
-𝒯 A M = ∀ {ρ} → ℛ ρ → 𝒞 A (M , ρ)
+-- 𝒯 A M = ∀ {ρ} → ℛ ρ → 𝒞 A (M , ρ)
+𝒯 A M = ∀ {ρ}
+  → ℛ ρ
+  → ∃[ v ](𝒱 A v × ({B : Type}(k : Cont A B) → (expr (M , ρ) k —→* cont v k)))
 
 ƛ̂ : ∀ {Γ} A {B}
   → {M : A ∷ Γ ⊢ B}
